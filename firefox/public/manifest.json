@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "CyberTemp - Premium Temp Mail",
+  "version": "1.0.1",
+  "description": "Secure, fast, and anonymous temporary email service with autofill capabilities. (v1.0)",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "*://api.cybertemp.xyz/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "CyberTemp"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon.png",
+    "48": "icons/icon.png",
+    "128": "icons/icon.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "content.css"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

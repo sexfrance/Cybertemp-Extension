@@ -1,0 +1,6 @@
+/* Not much here as we use inline styles for isolation and to avoid conflict */
+.cybertemp-icon-wrapper:hover svg {
+    filter: drop-shadow(0 0 2px #ff3b69);
+    transform: scale(1.1);
+    transition: all 0.2s;
+}

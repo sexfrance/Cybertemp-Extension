@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Add theme change animations */
+  :root {
+    color-scheme: light dark;
+  }
+
+  /* Core theme transition for most elements */
+  * {
+    transition: background-color 200ms ease-in-out,
+      border-color 200ms ease-in-out, color 200ms ease-in-out,
+      box-shadow 200ms ease-in-out;
+  }
+
+  /* Animations for theme toggle */
+  @keyframes theme-change-flash {
+    0% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.15);
+    }
+    100% {
+      filter: brightness(1);
+    }
+  }
+
+  @keyframes scale-up {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes rotate-in {
+    0% {
+      transform: rotate(-90deg);
+      opacity: 0;
+    }
+    100% {
+      transform: rotate(0);
+      opacity: 1;
+    }
+  }
+
+  .theme-change {
+    animation: theme-change-flash 300ms ease-out forwards;
+  }
+
+  /* Exclude certain elements from transitions */
+  img,
+  video,
+  canvas,
+  iframe {
+    transition: none !important;
+  }
+
+  html.transitioning * {
+    transition: none !important;
+  }
+
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Reverted to more subtle dark mode colors based on user feedback */
+    --background: 240 10% 0%; /* Darker, more neutral background */
+    --foreground: 0 0% 98%; /* Slightly off-white text */
+    --card: 240 10% 3.9%; /* Matching dark card background */
+    --card-foreground: 0 0% 98%; /* Clean text on cards */
+    --popover: 240 10% 3.9%; /* Consistent popover */
+    --popover-foreground: 0 0% 98%; /* Clean text on popovers */
+    --primary: 265 100% 65%; /* Original bright violet color */
+    --primary-foreground: 0 0% 100%; /* Pure white text on primary */
+    --secondary: 240 3.7% 15.9%; /* Subtle secondary */
+    --secondary-foreground: 0 0% 98%; /* Clean text on secondary */
+    --muted: 240 3.7% 15.9%; /* Subtle muted background */
+    --muted-foreground: 240 5% 64.9%; /* Subtle muted text */
+    --accent: 240 3.7% 15.9%; /* Subtle accent */
+    --accent-foreground: 0 0% 98%; /* Clean text on accent */
+    --destructive: 0 62.8% 30.6%; /* More subtle destructive */
+    --destructive-foreground: 0 0% 98%; /* Clean text on destructive */
+    --border: 240 3.7% 15.9%; /* Subtle borders */
+    --input: 240 3.7% 15.9%; /* Subtle input backgrounds */
+    --ring: 265 100% 75%; /* Original bright violet ring effect */
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 400px;
+    max-height: 600px;
+  }
+}
+
+.prose {
+  @apply max-w-none;
+}
+
+.prose a {
+  @apply text-primary hover:underline;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  @apply text-foreground scroll-m-20;
+}
+
+.prose h2 {
+  @apply text-2xl font-semibold tracking-tight mt-10 first:mt-0;
+}
+
+.prose p {
+  @apply leading-7 [&:not(:first-child)]:mt-6;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom scrollbar styles */
+.select-content-scroll {
+  scrollbar-width: thin !important;
+  scrollbar-color: hsl(var(--muted)) transparent !important;
+  -ms-overflow-style: auto !important;
+}
+
+.select-content-scroll::-webkit-scrollbar {
+  width: 6px !important;
+  display: block !important;
+}
+
+.select-content-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.select-content-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted)) !important;
+  border-radius: 3px !important;
+}
+
+.select-content-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground)) !important;
+}
+
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-animation {
+  animation: shimmer 1.5s infinite;
+}
+/* Remove focus outlines globally (disables focus rings). This affects keyboard accessibility. Consider using :focus-visible instead if you want to preserve keyboard focus outlines. */
+:focus,
+:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

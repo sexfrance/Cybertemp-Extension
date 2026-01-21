@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "priority": 100,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "User-Agent", "operation": "append", "value": " CyberTemp-Extension/1.0" },
+        { "header": "X-CyberTemp-Extension", "operation": "set", "value": "true" }
+      ]
+    },
+    "condition": {
+      "regexFilter": ".*(cybertemp\\.xyz|localhost).*",
+      "resourceTypes": ["xmlhttprequest", "sub_frame", "main_frame", "script", "other", "ping"]
+    }
+  }
+]

@@ -1,6 +1,6 @@
 # CyberTemp - Premium Temp Mail Extension
 
-![CyberTemp Logo](icons/icon.png)
+![CyberTemp Logo](public/icons/icon.png)
 
 **Secure, fast, and anonymous temporary email service with autofill capabilities.**
 

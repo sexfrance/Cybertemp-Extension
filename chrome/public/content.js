@@ -378,7 +378,12 @@ function pingWebsite() {
 
     // Only ping if on allowed origin
     if (allowedOrigins.some(origin => window.location.href.startsWith(origin))) {
-        window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
+        // Only ping if we DON'T have an API key yet
+        chrome.storage.local.get(['apiKey'], (result) => {
+            if (!result.apiKey) {
+                window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
+            }
+        });
     }
 }
 

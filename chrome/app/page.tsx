@@ -30,7 +30,8 @@ import {
   Sun,
   Keyboard,
   MousePointer2,
-  Palette
+  Palette,
+  Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AnimatedBackground from "@/components/animated-background";
@@ -78,6 +79,8 @@ export default function Popup() {
   const [enableAutofill, setEnableAutofill] = useState(true);
   const [plan, setPlan] = useState<{ type: string; isActive: boolean }>({ type: "FREE", isActive: false });
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [lastManualRefreshTime, setLastManualRefreshTime] = useState<number>(Date.now());
   
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [domains, setDomains] = useState<string[]>([]);
@@ -106,13 +109,25 @@ export default function Popup() {
       chrome.runtime.sendMessage({ type: "FETCH_USER_STATS" });
 
       // 2. Load Preferences & Cache
-      chrome.storage.local.get(["apiKey", "cachedEmails", "enableDetection", "cachedDomains", "enableAutofill", "plan", "theme"], (result: any) => {
+      chrome.storage.local.get([
+        "apiKey", 
+        "cachedEmails", 
+        "enableDetection", 
+        "cachedDomains", 
+        "enableAutofill", 
+        "plan", 
+        "theme",
+        "autoRefreshEnabled",
+        "lastManualRefreshTime"
+      ], (result: any) => {
         setApiKey(result.apiKey || "");
         if (result.cachedEmails) setEmails(result.cachedEmails);
         if (result.enableDetection !== undefined) setEnableDetection(result.enableDetection);
         if (result.enableAutofill !== undefined) setEnableAutofill(result.enableAutofill);
         if (result.plan) setPlan(result.plan);
         if (result.theme) setTheme(result.theme);
+        if (result.autoRefreshEnabled !== undefined) setAutoRefreshEnabled(result.autoRefreshEnabled);
+        if (result.lastManualRefreshTime) setLastManualRefreshTime(result.lastManualRefreshTime);
 
         if (result.cachedDomains?.length > 0) {
           setDomains(result.cachedDomains);
@@ -152,12 +167,18 @@ export default function Popup() {
       chrome.storage.onChanged.addListener(storageListener);
       chrome.runtime.onMessage.addListener(messageListener);
 
-      // 4. Polling for emails while popup is open (Ensure "detection" is live)
+      // 4. Polling for emails while popup is open (10s interval with 30min timeout)
       const pollInterval = setInterval(() => {
-          if (apiKey && currentEmail) {
-             chrome.runtime.sendMessage({ type: "REFRESH_MAIL" });
+          if (apiKey && currentEmail && autoRefreshEnabled) {
+             // Check if 30 minutes (1800000ms) have passed since last manual refresh
+             const thirtyMinutesInMs = 30 * 60 * 1000;
+             const timeSinceLastRefresh = Date.now() - lastManualRefreshTime;
+             
+             if (timeSinceLastRefresh < thirtyMinutesInMs) {
+                chrome.runtime.sendMessage({ type: "REFRESH_MAIL" });
+             }
           }
-      }, 5000);
+      }, 10000); // 10 second interval
 
       return () => {
         chrome.storage.onChanged.removeListener(storageListener);
@@ -165,7 +186,7 @@ export default function Popup() {
         clearInterval(pollInterval);
       };
     }
-  }, [apiKey, currentEmail]);
+  }, [apiKey, currentEmail, autoRefreshEnabled, lastManualRefreshTime]);
 
   const toggleDetection = (enabled: boolean) => {
       setEnableDetection(enabled);
@@ -183,9 +204,20 @@ export default function Popup() {
       chrome.storage.local.set({ theme: newTheme });
   };
 
+  const toggleAutoRefresh = (enabled: boolean) => {
+      setAutoRefreshEnabled(enabled);
+      chrome.storage.local.set({ autoRefreshEnabled: enabled });
+  };
+
   const fetchEmails = () => {
     setLoading(true);
+    
+    // Reset the 30-minute timer on manual refresh
+    const now = Date.now();
+    setLastManualRefreshTime(now);
+    
     if (typeof chrome !== "undefined" && chrome.runtime) {
+      chrome.storage.local.set({ lastManualRefreshTime: now });
       chrome.runtime.sendMessage({ type: "REFRESH_MAIL" });
       setTimeout(() => setLoading(false), 2000); 
     } else {
@@ -663,6 +695,19 @@ export default function Popup() {
                            </div>
                            <Switch checked={enableAutofill} onCheckedChange={toggleAutofill} className="data-[state=checked]:bg-primary scale-90 origin-right" />
                        </div>
+
+                        <div className="p-3 rounded-xl bg-card/50 border border-border/50 flex items-center justify-between hover:bg-card/80 transition-all group shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                                    <Timer className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-medium text-foreground">Auto-Refresh Emails</Label>
+                                    <p className="text-[10px] text-muted-foreground">Check for new emails every 10s</p>
+                                </div>
+                            </div>
+                            <Switch checked={autoRefreshEnabled} onCheckedChange={toggleAutoRefresh} className="data-[state=checked]:bg-primary scale-90 origin-right" />
+                        </div>
                    </div>
 
                    <div className="space-y-3">

@@ -98,7 +98,7 @@ export default function Popup() {
   useEffect(() => {
     if (typeof chrome !== "undefined" && chrome.runtime) {
       // 1. Initial State Fetch
-      chrome.runtime.sendMessage({ type: "GET_CURRENT_EMAIL" }, (response) => {
+      chrome.runtime.sendMessage({ type: "GET_CURRENT_EMAIL" }, (response: any) => {
         if (response?.email) {
           setCurrentEmail(response.email);
           fetchEmails();
@@ -280,7 +280,7 @@ export default function Popup() {
           random,
           username: finalUsername,
           domain: finalDomain
-      }, (response) => {
+      }, (response: any) => {
         setLoading(false);
         if (response?.email) {
           setCurrentEmail(response.email);

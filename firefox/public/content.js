@@ -103,9 +103,10 @@ function injectIcon(input) {
         boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
     });
     // Safely insert SVG without innerHTML
-    const tempDiv = document.createElement('div');
-    tempDiv.insertAdjacentHTML('afterbegin', ICON_SVG);
-    wrapper.appendChild(tempDiv.firstChild);
+    // Safely insert SVG without innerHTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(ICON_SVG, 'image/svg+xml');
+    wrapper.appendChild(doc.documentElement);
 
     wrapper.onmouseenter = () => {
         wrapper.style.opacity = '1';
@@ -490,9 +491,9 @@ function showToast(msg, type = "info") {
 
     const iconContainer = document.createElement('div');
     iconContainer.style.cssText = 'display: flex; align-items: center; justify-content: center;';
-    const iconTemp = document.createElement('div');
-    iconTemp.insertAdjacentHTML('afterbegin', icons[type]);
-    iconContainer.appendChild(iconTemp.firstChild);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(icons[type], 'image/svg+xml');
+    iconContainer.appendChild(doc.documentElement);
 
     const msgSpan = document.createElement('span');
     msgSpan.style.cssText = 'font-size: 13px; font-weight: 500; color: #ededed; letter-spacing: -0.01em;';

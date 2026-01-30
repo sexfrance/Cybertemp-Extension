@@ -102,7 +102,10 @@ function injectIcon(input) {
         backdropFilter: 'blur(4px)',
         boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
     });
-    wrapper.innerHTML = ICON_SVG;
+    // Safely insert SVG without innerHTML
+    const tempDiv = document.createElement('div');
+    tempDiv.insertAdjacentHTML('afterbegin', ICON_SVG);
+    wrapper.appendChild(tempDiv.firstChild);
 
     wrapper.onmouseenter = () => {
         wrapper.style.opacity = '1';
@@ -481,12 +484,23 @@ function showToast(msg, type = "info") {
         info: `<svg class="w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`
     };
 
-    toast.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="display: flex; align-items: center; justify-content: center;">${icons[type]}</div>
-            <span style="font-size: 13px; font-weight: 500; color: #ededed; letter-spacing: -0.01em;">${msg}</span>
-        </div>
-    `;
+    // Build toast content safely without innerHTML
+    const container = document.createElement('div');
+    container.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+
+    const iconContainer = document.createElement('div');
+    iconContainer.style.cssText = 'display: flex; align-items: center; justify-content: center;';
+    const iconTemp = document.createElement('div');
+    iconTemp.insertAdjacentHTML('afterbegin', icons[type]);
+    iconContainer.appendChild(iconTemp.firstChild);
+
+    const msgSpan = document.createElement('span');
+    msgSpan.style.cssText = 'font-size: 13px; font-weight: 500; color: #ededed; letter-spacing: -0.01em;';
+    msgSpan.textContent = msg;
+
+    container.appendChild(iconContainer);
+    container.appendChild(msgSpan);
+    toast.appendChild(container);
 
     Object.assign(toast.style, {
         position: 'fixed',
@@ -531,31 +545,37 @@ function showToast(msg, type = "info") {
 function showLoginToast() {
     const toast = document.createElement('div');
 
-    toast.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 18px;">🔒</span>
-                <span style="font-weight: 600;">Login Required</span>
-            </div>
-            <p style="margin: 0; font-size: 13px; opacity: 0.9; line-height: 1.5;">
-                You need to be logged in to use CyberTemp.
-            </p>
-            <button id="cybertemp-login-btn" style="
-                background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-                color: white;
-                border: none;
-                padding: 10px 18px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 13px;
-                cursor: pointer;
-                transition: all 0.2s;
-                box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
-            ">
-                Login to CyberTemp
-            </button>
-        </div>
-    `;
+    // Build login toast safely without innerHTML
+    const mainContainer = document.createElement('div');
+    mainContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+    const headerDiv = document.createElement('div');
+    headerDiv.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+
+    const lockIcon = document.createElement('span');
+    lockIcon.style.fontSize = '18px';
+    lockIcon.textContent = '🔒';
+
+    const headerText = document.createElement('span');
+    headerText.style.fontWeight = '600';
+    headerText.textContent = 'Login Required';
+
+    headerDiv.appendChild(lockIcon);
+    headerDiv.appendChild(headerText);
+
+    const description = document.createElement('p');
+    description.style.cssText = 'margin: 0; font-size: 13px; opacity: 0.9; line-height: 1.5;';
+    description.textContent = 'You need to be logged in to use CyberTemp.';
+
+    const loginBtn = document.createElement('button');
+    loginBtn.id = 'cybertemp-login-btn';
+    loginBtn.style.cssText = 'background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);';
+    loginBtn.textContent = 'Login to CyberTemp';
+
+    mainContainer.appendChild(headerDiv);
+    mainContainer.appendChild(description);
+    mainContainer.appendChild(loginBtn);
+    toast.appendChild(mainContainer);
 
     Object.assign(toast.style, {
         position: 'fixed',

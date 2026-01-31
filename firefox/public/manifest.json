@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CyberTemp - Premium Temp Mail",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Secure, fast, and anonymous temporary email service with autofill capabilities.",
   "permissions": [
     "storage",
@@ -25,11 +25,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "cybertemp@extension",
-      "strict_min_version": "109.0",
-      "data_collection_permissions": {
-        "required": [],
-        "optional": []
-      }
+      "strict_min_version": "109.0"
     }
   },
   "content_scripts": [

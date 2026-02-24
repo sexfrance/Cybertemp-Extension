@@ -289,16 +289,29 @@ if (document.body) {
 
 // --- Autofill Logic (SMS/Code) ---
 
+/**
+ * Determines if an input is likely a verification code field.
+ * Requires at least one explicit signal — does NOT use maxLength alone.
+ */
 function isCodeInput(input) {
+    // Never touch hidden, email, or password inputs
     if (input.type === 'hidden' || input.type === 'email' || input.type === 'password') return false;
 
-    // Explicit attributes
+    // Must be visible
+    if (!isVisible(input)) return false;
+
+    // Strongest signal: HTML autocomplete attribute
     if (input.autocomplete === 'one-time-code') return true;
 
-    const keywords = [/code/i, /otp/i, /pin/i, /verification/i, /2fa/i, /security/i];
-    const attrToCheck = [input.name, input.id, input.placeholder];
+    // Single-character input (part of a digit-by-digit OTP group)
+    if ((input.type === 'text' || input.type === 'tel' || input.type === 'number') && input.maxLength === 1) {
+        return true;
+    }
 
-    // Check labels
+    // Keyword-based detection (explicit attributes only)
+    const keywords = [/\bcode\b/i, /\botp\b/i, /\bpin\b/i, /\bverif/i, /\b2fa\b/i, /\btoken\b/i, /\bauth\b/i];
+    const attrToCheck = [input.name, input.id, input.placeholder, input.getAttribute('aria-label'), input.getAttribute('aria-describedby')];
+
     if (input.id) {
         const label = document.querySelector(`label[for="${input.id}"]`);
         if (label) attrToCheck.push(label.innerText);
@@ -311,13 +324,70 @@ function isCodeInput(input) {
         if (keywords.some(regex => regex.test(attr))) return true;
     }
 
-    // Heuristics: Short numeric inputs often used for OTPs
-    if ((input.type === 'text' || input.type === 'tel' || input.type === 'number')) {
-        const maxLen = input.maxLength;
-        if (maxLen > 0 && maxLen <= 8) return true; // Likely a code field
-    }
-
     return false;
+}
+
+/**
+ * Finds a group of consecutive single-character inputs on the page.
+ * Returns the array if >= 2 members (OTP group), otherwise null.
+ */
+function findOtpInputGroup(anchorInput) {
+    if (anchorInput.maxLength !== 1) return null;
+
+    const allSingleChar = Array.from(document.querySelectorAll('input'))
+        .filter(i => i.maxLength === 1 && isVisible(i) && !['hidden', 'email', 'password', 'checkbox', 'radio', 'file'].includes(i.type));
+
+    if (allSingleChar.length < 2) return null;
+    if (!allSingleChar.includes(anchorInput)) return null;
+
+    return allSingleChar;
+}
+
+/**
+ * Smart fill: distributes digits across per-digit OTP inputs, or fills a single input.
+ */
+function fillCode(target, code) {
+    const group = findOtpInputGroup(target);
+
+    if (group && group.length >= 2) {
+        const chars = code.split('');
+        group.forEach((input, i) => {
+            if (i < chars.length) {
+                fillSingleInput(input, chars[i]);
+                applyHighlight(input);
+            }
+        });
+        if (chars.length <= group.length) {
+            group[chars.length - 1]?.focus();
+        }
+    } else {
+        fillSingleInput(target, code);
+        applyHighlight(target);
+    }
+}
+
+function fillSingleInput(input, value) {
+    input.focus();
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(input, value);
+    } else {
+        input.value = value;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function applyHighlight(input) {
+    const originalShadow = input.style.boxShadow;
+    const originalBorder = input.style.borderColor;
+    input.style.transition = 'all 0.3s ease';
+    input.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.3)';
+    input.style.borderColor = '#8b5cf6';
+    setTimeout(() => {
+        input.style.boxShadow = originalShadow;
+        input.style.borderColor = originalBorder;
+    }, 1500);
 }
 
 // Listen for messages from the website (Auto-Auth)
@@ -362,9 +432,10 @@ window.addEventListener("message", (event) => {
                 plan: plan || { type: "FREE", isActive: false }
             }, () => {
                 chrome.runtime.sendMessage({ type: "REFRESH_MAIL" }).catch(() => { });
-                // FORCE Update Stats immediately to fix "Free Plan" sync issue
                 chrome.runtime.sendMessage({ type: "FETCH_USER_STATS" }).catch(() => { });
                 showToast("Login Synced Successfully", "success");
+                // Acknowledge back so the success page knows the extension received the key
+                window.postMessage({ type: "CYBERTEMP_AUTH_RECEIVED" }, event.origin);
             });
         }
     }
@@ -380,22 +451,18 @@ function pingWebsite() {
         "https://tempmail-next.vercel.app"
     ];
 
-    // Only ping if on allowed origin
+    // Always ping on allowed origins — the page decides what to do with it
     if (allowedOrigins.some(origin => window.location.href.startsWith(origin))) {
-        // Only ping if we DON'T have an API key yet
-        chrome.storage.local.get(['apiKey'], (result) => {
-            if (!result.apiKey) {
-                window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
-            }
-        });
+        window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
     }
 }
 
-// Ping a few times on load to catch React hydration
+// Ping several times to handle React hydration delays
 if (!isOrphan()) {
-    setTimeout(pingWebsite, 500);
-    setTimeout(pingWebsite, 1500);
-    setTimeout(pingWebsite, 3000);
+    setTimeout(pingWebsite, 300);
+    setTimeout(pingWebsite, 1000);
+    setTimeout(pingWebsite, 2500);
+    setTimeout(pingWebsite, 5000);
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -423,11 +490,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // I'll leave this logic as is for now.
             if (result.enableAutofill === false) return;
 
-            // Find best candidate
             const inputs = Array.from(document.querySelectorAll('input'));
-            let target = inputs.find(i => isVisible(i) && isCodeInput(i));
 
-            // If no specific code input found, check for active element if it's generic text
+            // First: look for single-char inputs (per-digit OTP group)
+            let target = inputs.find(i => isVisible(i) && i.maxLength === 1 &&
+                ['text', 'tel', 'number'].includes(i.type));
+
+            // Second: look for a named code input
+            if (!target) {
+                target = inputs.find(i => isVisible(i) && isCodeInput(i));
+            }
+
+            // Third: fall back to the currently focused element
             if (!target && document.activeElement && document.activeElement.tagName === 'INPUT') {
                 if (['text', 'tel', 'number'].includes(document.activeElement.type)) {
                     target = document.activeElement;
@@ -435,36 +509,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             if (target) {
-                fillInput(target, code);
+                fillCode(target, code);
                 showToast(`Auto-filled code: ${code}`);
             }
         });
     }
 });
 
+// fillInput kept as alias for legacy callers
 function fillInput(input, value) {
-    input.focus();
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-    if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(input, value);
-    } else {
-        input.value = value;
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-
-    // Highlight effect
-    const originalShadow = input.style.boxShadow;
-    const originalBorder = input.style.borderColor;
-
-    input.style.transition = 'all 0.3s ease';
-    input.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.3)'; // Violet shadow
-    input.style.borderColor = '#8b5cf6'; // Violet border
-
-    setTimeout(() => {
-        input.style.boxShadow = originalShadow;
-        input.style.borderColor = originalBorder;
-    }, 1500);
+    fillSingleInput(input, value);
+    applyHighlight(input);
 }
 
 function isVisible(el) {

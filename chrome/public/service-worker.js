@@ -202,24 +202,56 @@ async function processEmails(emails) {
 
 function extractVerificationCode(email) {
     if (!email) return null;
-    // API uses 'text' or 'html', not body_text
     const content = email.text || email.html || "";
 
-    // Regex patterns
-    const patterns = [
-        /\b\d{4,8}\b/, // Standalone 4-8 digit numbers
-        /code is:?\s*(\w+)/i,
-        /verification code:?\s*(\w+)/i,
-        /security code:?\s*(\w+)/i
+    // Strip HTML tags for cleaner matching on HTML emails
+    const plainText = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+    // --- Priority 1: Context-aware patterns (keyword before/after number) ---
+    const contextPatterns = [
+        // "Your code is: 123456" / "Code: 123456"
+        /\b(?:verification|confirm(?:ation)?|security|login|sign.in|one.time|access|auth(?:entication)?)\s+code[:\s]+(\d{4,8})\b/i,
+        /\bcode[:\s]+(\d{4,8})\b/i,
+        // "OTP: 123456" / "Your OTP is 123456"
+        /\botp[:\s]+(\d{4,8})\b/i,
+        /\bpin[:\s]+(\d{4,8})\b/i,
+        // "token: 123456"
+        /\btoken[:\s]+(\d{4,8})\b/i,
+        // "is: 123456" - common in "Your code is: XXXXXX"
+        /\bis[:\s]+(\d{4,8})\b/i,
+        // Code followed by a label: "123456 is your code"
+        /\b(\d{4,8})\s+is\s+your\s+(?:verification\s+)?code\b/i,
+        // "Enter XXXXXX" patterns
+        /\benter\s+(\d{4,8})\b/i,
+        // Alphanumeric codes with keyword context
+        /\b(?:code|token|otp)[:\s]+([A-Z0-9]{4,12})\b/i,
     ];
 
-    for (const pattern of patterns) {
-        const match = content.match(pattern);
-        if (match) {
-            // If it's a capturing group return group 1, else return the match
-            return match[1] || match[0];
+    for (const pattern of contextPatterns) {
+        const match = plainText.match(pattern);
+        if (match && match[1]) {
+            return match[1];
         }
     }
+
+    // --- Priority 2: Bare number fallback (4-8 digits, heavily filtered) ---
+    // Exclude: years (1900-2099), prices ($XX or XX.XX), phone fragments (10+ digits nearby)
+    const bareNumberRegex = /\b(\d{4,8})\b/g;
+    let match;
+    while ((match = bareNumberRegex.exec(plainText)) !== null) {
+        const num = match[1];
+        const surroundingText = plainText.slice(Math.max(0, match.index - 5), match.index + num.length + 5);
+
+        // Skip years
+        if (/^(19|20)\d{2}$/.test(num)) continue;
+        // Skip prices (preceded by $ or followed by decimal)
+        if (/[\$€£]/.test(surroundingText) || /\.\d{2}/.test(plainText.slice(match.index + num.length, match.index + num.length + 3))) continue;
+        // Skip if it's part of a longer number (phone)
+        if (/\d{9,}/.test(plainText.slice(Math.max(0, match.index - 2), match.index + num.length + 2))) continue;
+
+        return num;
+    }
+
     return null;
 }
 

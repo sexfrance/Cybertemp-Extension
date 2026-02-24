@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CyberTemp - Premium Temp Mail",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Secure, fast, and anonymous temporary email service with autofill capabilities.",
   "permissions": [
     "storage",

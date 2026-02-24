@@ -1,8 +1,6 @@
 // CyberTemp Content Script
 
 // Configuration
-// Using a clean Mail icon (Violet) instead of the previous "horrible" one
-// Using a premium Mail icon with a subtle fill
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
 
 // --- Utilities ---
@@ -48,11 +46,11 @@ function isEmailInput(input) {
     const eTypes = ['checkbox', 'radio', 'button', 'submit', 'image', 'file', 'hidden', 'password', 'reset', 'range', 'color', 'date', 'datetime-local'];
     if (eTypes.includes(input.type)) return false;
 
-    if (input.style.display === 'none' || input.style.visibility === 'hidden') return false; // Visual check
+    if (input.style.display === 'none' || input.style.visibility === 'hidden') return false;
     if (input.getAttribute('aria-hidden') === 'true') return false;
 
     if (input.type === 'email') return true;
-    if (input.name && input.name.toLowerCase().includes('password')) return false; // Extra safety against password fields labeled weirdly
+    if (input.name && input.name.toLowerCase().includes('password')) return false;
 
     if (input.autocomplete === 'email' || input.autocomplete === 'username') return true;
 
@@ -96,8 +94,8 @@ function injectIcon(input) {
         opacity: '0.9',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         pointerEvents: 'auto',
-        background: 'rgba(139, 92, 246, 0.15)', // Visible violet tint
-        border: '1px solid rgba(139, 92, 246, 0.3)', // Violet border
+        background: 'rgba(139, 92, 246, 0.15)',
+        border: '1px solid rgba(139, 92, 246, 0.3)',
         borderRadius: '8px',
         backdropFilter: 'blur(4px)',
         boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
@@ -107,9 +105,9 @@ function injectIcon(input) {
     wrapper.onmouseenter = () => {
         wrapper.style.opacity = '1';
         wrapper.style.transform = 'scale(1.05)';
-        wrapper.style.background = 'rgba(139, 92, 246, 0.25)'; // Darker violet on hover
+        wrapper.style.background = 'rgba(139, 92, 246, 0.25)';
         wrapper.style.border = '1px solid rgba(139, 92, 246, 0.5)';
-        wrapper.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.25)'; // Glow effect
+        wrapper.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.25)';
     };
     wrapper.onmouseleave = () => {
         wrapper.style.opacity = '0.9';
@@ -119,7 +117,6 @@ function injectIcon(input) {
         wrapper.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
     };
 
-    // Append to body (safer than appending to parent which might be an input group)
     document.body.appendChild(wrapper);
 
     // Positioning Logic
@@ -135,9 +132,8 @@ function injectIcon(input) {
         }
 
         wrapper.style.display = 'flex';
-        // Position at the right end of the input (inside)
         const top = rect.top + window.scrollY + (rect.height - 24) / 2;
-        const left = rect.left + window.scrollX + rect.width - 32; // 32px padding from right edge
+        const left = rect.left + window.scrollX + rect.width - 32;
 
         wrapper.style.top = `${top}px`;
         wrapper.style.left = `${left}px`;
@@ -145,7 +141,6 @@ function injectIcon(input) {
 
     updatePosition();
 
-    // Listeners for position updates
     const resizeObserver = new ResizeObserver(() => updatePosition());
     resizeObserver.observe(input);
     window.addEventListener('scroll', updatePosition, { capture: true, passive: true });
@@ -156,25 +151,20 @@ function injectIcon(input) {
         e.preventDefault();
         e.stopPropagation();
 
-        // Animation
         wrapper.style.transform = "scale(0.9)";
         setTimeout(() => wrapper.style.transform = "scale(1.1)", 150);
 
         try {
-            // STRICT AUTH CHECK
             const { apiKey } = await safeGetStorage(['apiKey']);
 
             if (!apiKey) {
-                // Not authenticated - show login prompt
                 showLoginToast();
                 return;
             }
 
-            // Check for existing email
             let data = await safeSendMessage({ type: "GET_CURRENT_EMAIL" });
 
             if (!data || !data.email) {
-                // No email exists - generate one automatically
                 const loadingToast = showToast("Generating email...", "loading");
                 data = await safeSendMessage({
                     type: "GENERATE_EMAIL",
@@ -193,7 +183,6 @@ function injectIcon(input) {
 
             // Fill the input
             input.focus();
-            // React/Framework friendly input set
             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
             if (nativeInputValueSetter) {
                 nativeInputValueSetter.call(input, data.email);
@@ -203,7 +192,7 @@ function injectIcon(input) {
 
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dispatchEvent(new Event('blur', { bubbles: true })); // Trigger blur to save
+            input.dispatchEvent(new Event('blur', { bubbles: true }));
         } catch (err) {
             showToast("Extension error. Please reload page.", "error");
         }
@@ -224,19 +213,15 @@ async function runDetection() {
 
     const { enableDetection } = await safeGetStorage(['enableDetection']);
 
-    // Explicitly check for false, default to true if undefined
     if (enableDetection === false) {
         detectionEnabled = false;
-        // Remove existing icons if disabled
         document.querySelectorAll('.cybertemp-icon-wrapper').forEach(el => el.remove());
-        // Reset injected flags so they can be re-injected if enabled later
         document.querySelectorAll('input[data-cybertemp-injected]').forEach(el => delete el.dataset.cybertempInjected);
         return;
     }
 
     detectionEnabled = true;
 
-    // Scan all existing inputs
     document.querySelectorAll('input').forEach(input => {
         if (isEmailInput(input)) injectIcon(input);
     });
@@ -252,7 +237,7 @@ const observer = new MutationObserver((mutations) => {
 
     for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1) { // Element
+            if (node.nodeType === 1) {
                 if (node.tagName === 'INPUT' && isEmailInput(node)) {
                     injectIcon(node);
                 } else if (node.querySelectorAll) {
@@ -276,7 +261,6 @@ function shutdown() {
     document.querySelectorAll('.cybertemp-icon-wrapper').forEach(el => el.remove());
 }
 
-// Start up
 if (document.body) {
     startObserver();
 } else {
@@ -285,16 +269,30 @@ if (document.body) {
 
 // --- Autofill Logic (SMS/Code) ---
 
+/**
+ * Determines if an input is likely a verification code field.
+ * Requires at least one explicit signal — does NOT use maxLength alone.
+ */
 function isCodeInput(input) {
+    // Never touch hidden, email, or password inputs
     if (input.type === 'hidden' || input.type === 'email' || input.type === 'password') return false;
 
-    // Explicit attributes
+    // Must be visible
+    if (!isVisible(input)) return false;
+
+    // Strongest signal: HTML autocomplete attribute
     if (input.autocomplete === 'one-time-code') return true;
 
-    const keywords = [/code/i, /otp/i, /pin/i, /verification/i, /2fa/i, /security/i];
-    const attrToCheck = [input.name, input.id, input.placeholder];
+    // Single-character input (part of a digit-by-digit OTP group)
+    // Only treat as code if maxLength is exactly 1 AND it's a text/tel/number input
+    if ((input.type === 'text' || input.type === 'tel' || input.type === 'number') && input.maxLength === 1) {
+        return true;
+    }
 
-    // Check labels
+    // Keyword-based detection (explicit attributes only — not guessing by maxLength)
+    const keywords = [/\bcode\b/i, /\botp\b/i, /\bpin\b/i, /\bverif/i, /\b2fa\b/i, /\btoken\b/i, /\bauth\b/i];
+    const attrToCheck = [input.name, input.id, input.placeholder, input.getAttribute('aria-label'), input.getAttribute('aria-describedby')];
+
     if (input.id) {
         const label = document.querySelector(`label[for="${input.id}"]`);
         if (label) attrToCheck.push(label.innerText);
@@ -307,16 +305,84 @@ function isCodeInput(input) {
         if (keywords.some(regex => regex.test(attr))) return true;
     }
 
-    // Heuristics: Short numeric inputs often used for OTPs
-    if ((input.type === 'text' || input.type === 'tel' || input.type === 'number')) {
-        const maxLen = input.maxLength;
-        if (maxLen > 0 && maxLen <= 8) return true; // Likely a code field
-    }
-
     return false;
 }
 
-// Listen for messages from the website (Auto-Auth)
+/**
+ * Finds a group of consecutive single-character inputs adjacent to the given input.
+ * Returns an array of inputs in DOM order if the group has >= 2 members, otherwise null.
+ */
+function findOtpInputGroup(anchorInput) {
+    if (anchorInput.maxLength !== 1) return null;
+
+    // Collect ALL single-char visible inputs on the page that are near each other
+    const allSingleChar = Array.from(document.querySelectorAll('input'))
+        .filter(i => i.maxLength === 1 && isVisible(i) && !['hidden', 'email', 'password', 'checkbox', 'radio', 'file'].includes(i.type));
+
+    if (allSingleChar.length < 2) return null;
+
+    // Make sure our anchor is in the group
+    if (!allSingleChar.includes(anchorInput)) return null;
+
+    return allSingleChar;
+}
+
+/**
+ * Fills a single input with a value (React/framework compatible).
+ */
+function fillSingleInput(input, value) {
+    input.focus();
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(input, value);
+    } else {
+        input.value = value;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/**
+ * Smart fill: if code inputs are individual character boxes, spread digits across them.
+ * Otherwise fill the full code into a single input.
+ */
+function fillCode(target, code) {
+    const group = findOtpInputGroup(target);
+
+    if (group && group.length >= 2) {
+        // Multi-input OTP mode: distribute one character per input
+        const chars = code.split('');
+        group.forEach((input, i) => {
+            if (i < chars.length) {
+                fillSingleInput(input, chars[i]);
+                // Brief highlight
+                applyHighlight(input);
+            }
+        });
+        // Focus the last filled input
+        if (chars.length <= group.length) {
+            group[chars.length - 1]?.focus();
+        }
+    } else {
+        // Standard single-input mode
+        fillSingleInput(target, code);
+        applyHighlight(target);
+    }
+}
+
+function applyHighlight(input) {
+    const originalShadow = input.style.boxShadow;
+    const originalBorder = input.style.borderColor;
+    input.style.transition = 'all 0.3s ease';
+    input.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.3)';
+    input.style.borderColor = '#8b5cf6';
+    setTimeout(() => {
+        input.style.boxShadow = originalShadow;
+        input.style.borderColor = originalBorder;
+    }, 1500);
+}
+
+// --- Auth Message Listener (website → extension) ---
 window.addEventListener("message", (event) => {
     // SECURITY: strictly validate origin
     const allowedOrigins = [
@@ -326,25 +392,15 @@ window.addEventListener("message", (event) => {
         "https://tempmail-next.vercel.app"
     ];
 
-    // Message validation
-
-    if (!allowedOrigins.includes(event.origin)) {
-        return;
-    }
-
-    // SECURITY: Verify source is the window itself (prevents iframe spoofing from other frames)
-    if (event.source !== window) {
-        return;
-    }
+    if (!allowedOrigins.includes(event.origin)) return;
+    if (event.source !== window) return;
 
     let messageData = event.data;
 
-    // Handle stringified JSON (common in some frameworks/extensions interactions)
     if (typeof messageData === "string") {
         try {
             messageData = JSON.parse(messageData);
         } catch (e) {
-            // Not JSON, ignore
             return;
         }
     }
@@ -358,13 +414,14 @@ window.addEventListener("message", (event) => {
                 plan: plan || { type: "FREE", isActive: false }
             }, () => {
                 chrome.runtime.sendMessage({ type: "REFRESH_MAIL" }).catch(() => { });
-                // FORCE Update Stats immediately to fix "Free Plan" sync issue
                 chrome.runtime.sendMessage({ type: "FETCH_USER_STATS" }).catch(() => { });
                 showToast("Login Synced Successfully", "success");
+
+                // Acknowledge back to the page so it knows the extension received the key
+                window.postMessage({ type: "CYBERTEMP_AUTH_RECEIVED" }, event.origin);
             });
         }
     }
-
 });
 
 // --- Handshake: Tell Website we are here ---
@@ -376,29 +433,26 @@ function pingWebsite() {
         "https://tempmail-next.vercel.app"
     ];
 
-    // Only ping if on allowed origin
+    // Always ping on allowed origins (regardless of whether we have a key)
+    // The page decides what to do with the ping — success page still posts the auth message
     if (allowedOrigins.some(origin => window.location.href.startsWith(origin))) {
-        // Only ping if we DON'T have an API key yet
-        chrome.storage.local.get(['apiKey'], (result) => {
-            if (!result.apiKey) {
-                window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
-            }
-        });
+        window.postMessage({ type: "CYBERTEMP_EXTENSION_READY" }, "*");
     }
 }
 
-// Ping a few times on load to catch React hydration
+// Ping several times to handle React hydration delays
 if (!isOrphan()) {
-    setTimeout(pingWebsite, 500);
-    setTimeout(pingWebsite, 1500);
-    setTimeout(pingWebsite, 3000);
+    setTimeout(pingWebsite, 300);
+    setTimeout(pingWebsite, 1000);
+    setTimeout(pingWebsite, 2500);
+    setTimeout(pingWebsite, 5000);
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (isOrphan()) return;
 
     if (message.type === "SETTINGS_UPDATED") {
-        runDetection(); // Re-check settings (enable/disable icons)
+        runDetection();
         return;
     }
 
@@ -407,23 +461,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!code) return;
 
         safeGetStorage(['enableAutofill']).then(result => {
-            // Default to true if undefined? No, logic below says result.enableAutofill === false return.
-            // But wait, do we have an enableAutofill setting separate from enableDetection?
-            // The UI only has "Input Detection".
-            // Assuming "Auto-fill" logic relies on the same or separate? 
-            // In page.tsx I used "Input Detection" label but key "enableDetection".
-            // Line 368 in old page.tsx said "Auto-fill".
-            // I'll stick to "enableDetection" for inputs.
-            // For code filling (via notification), it's separate. 
-            // Logic here seems fine, assuming enableAutofill might be another setting or default.
-            // I'll leave this logic as is for now.
             if (result.enableAutofill === false) return;
 
-            // Find best candidate
             const inputs = Array.from(document.querySelectorAll('input'));
-            let target = inputs.find(i => isVisible(i) && isCodeInput(i));
 
-            // If no specific code input found, check for active element if it's generic text
+            // First: look for single-char inputs (per-digit OTP group)
+            let target = inputs.find(i => isVisible(i) && i.maxLength === 1 &&
+                ['text', 'tel', 'number'].includes(i.type));
+
+            // Second: look for a named code input
+            if (!target) {
+                target = inputs.find(i => isVisible(i) && isCodeInput(i));
+            }
+
+            // Third: fall back to the currently focused element if it's a text/tel/number input
             if (!target && document.activeElement && document.activeElement.tagName === 'INPUT') {
                 if (['text', 'tel', 'number'].includes(document.activeElement.type)) {
                     target = document.activeElement;
@@ -431,37 +482,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             if (target) {
-                fillInput(target, code);
+                fillCode(target, code);
                 showToast(`Auto-filled code: ${code}`);
             }
         });
     }
 });
-
-function fillInput(input, value) {
-    input.focus();
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-    if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(input, value);
-    } else {
-        input.value = value;
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-
-    // Highlight effect
-    const originalShadow = input.style.boxShadow;
-    const originalBorder = input.style.borderColor;
-
-    input.style.transition = 'all 0.3s ease';
-    input.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.3)'; // Violet shadow
-    input.style.borderColor = '#8b5cf6'; // Violet border
-
-    setTimeout(() => {
-        input.style.boxShadow = originalShadow;
-        input.style.borderColor = originalBorder;
-    }, 1500);
-}
 
 function isVisible(el) {
     return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length) &&
@@ -470,9 +496,6 @@ function isVisible(el) {
 
 function showToast(msg, type = "info") {
     const toast = document.createElement('div');
-
-    // Shadcn / Premium UI Style
-    // Dark mode default
 
     const icons = {
         success: `<svg class="w-4 h-4 text-emerald-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
@@ -492,8 +515,8 @@ function showToast(msg, type = "info") {
         position: 'fixed',
         bottom: '24px',
         right: '24px',
-        background: '#09090b', // Zinc-950
-        border: '1px solid #27272a', // Zinc-800
+        background: '#09090b',
+        border: '1px solid #27272a',
         padding: '12px 16px',
         borderRadius: '8px',
         zIndex: '2147483647',
@@ -516,7 +539,6 @@ function showToast(msg, type = "info") {
         toast.style.transform = 'translateY(0) scale(1)';
     });
 
-    // Loading toasts don't auto-dismiss
     if (type !== 'loading') {
         setTimeout(() => {
             toast.style.opacity = '0';
@@ -579,7 +601,6 @@ function showLoginToast() {
 
     document.body.appendChild(toast);
 
-    // Login button handler
     const loginBtn = toast.querySelector('#cybertemp-login-btn');
     loginBtn.addEventListener('click', () => {
         window.open('https://cybertemp.xyz/auth/login?source=extension&action=auth', '_blank');
@@ -601,7 +622,6 @@ function showLoginToast() {
         toast.style.transform = 'translateY(0) scale(1)';
     });
 
-    // Auto-dismiss after 6 seconds
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(8px) scale(0.95)';

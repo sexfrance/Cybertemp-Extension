@@ -409,16 +409,22 @@ window.addEventListener("message", (event) => {
         const { apiKey, plan } = messageData;
 
         if (apiKey && typeof apiKey === "string" && apiKey.length > 0) {
-            chrome.storage.local.set({
-                apiKey: apiKey,
-                plan: plan || { type: "FREE", isActive: false }
-            }, () => {
-                chrome.runtime.sendMessage({ type: "REFRESH_MAIL" }).catch(() => { });
-                chrome.runtime.sendMessage({ type: "FETCH_USER_STATS" }).catch(() => { });
-                showToast("Login Synced Successfully", "success");
+            safeGetStorage(['apiKey']).then((res) => {
+                const isNewKey = res.apiKey !== apiKey;
 
-                // Acknowledge back to the page so it knows the extension received the key
-                window.postMessage({ type: "CYBERTEMP_AUTH_RECEIVED" }, event.origin);
+                chrome.storage.local.set({
+                    apiKey: apiKey,
+                    plan: plan || { type: "FREE", isActive: false }
+                }, () => {
+                    if (isNewKey) {
+                        chrome.runtime.sendMessage({ type: "REFRESH_MAIL" }).catch(() => { });
+                        chrome.runtime.sendMessage({ type: "FETCH_USER_STATS" }).catch(() => { });
+                        showToast("Login Synced Successfully", "success");
+                    }
+
+                    // Acknowledge back to the page so it knows the extension received the key
+                    window.postMessage({ type: "CYBERTEMP_AUTH_RECEIVED" }, event.origin);
+                });
             });
         }
     }

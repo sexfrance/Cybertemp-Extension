@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,33 @@ type Email = {
   from_address?: string;
   body_text?: string;
   created_at?: string;
+};
+
+const renderTextWithLinks = (text: string) => {
+  if (!text) return "No content";
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+[^<.,:;"')\]\s])/g;
+  return text.split(urlRegex).map((part, i) => {
+    if (part.match(urlRegex)) {
+      const href = part.startsWith("www.") ? `https://${part}` : part;
+      return (
+        <a 
+          key={i} 
+          href={href} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="relative z-10 cursor-pointer text-primary hover:text-primary/80 underline decoration-primary/30 underline-offset-2 transition-colors break-all"
+          onClick={(e: any) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(href, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
 };
 
 export default function Popup() {
@@ -429,8 +456,8 @@ export default function Popup() {
                                 </span>
                             </div>
                         </div>
-                        <div className="bg-card/40 border border-black/5 dark:border-white/5 rounded-xl p-6 min-h-[300px] text-sm leading-relaxed whitespace-pre-wrap font-sans text-muted-foreground/90 selection:bg-primary/20">
-                            {selectedEmail.text || selectedEmail.body_text || "No content"}
+                        <div className="bg-card/40 border border-black/5 dark:border-white/5 rounded-xl p-6 min-h-[300px] text-sm leading-relaxed whitespace-pre-wrap font-sans text-muted-foreground/90 selection:bg-primary/20 break-words">
+                            {renderTextWithLinks(selectedEmail.text || selectedEmail.body_text || "")}
                         </div>
                     </div>
                 </div>

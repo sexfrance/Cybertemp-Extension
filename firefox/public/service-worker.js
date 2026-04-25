@@ -20,6 +20,19 @@ async function getStorage(keys) {
     });
 }
 
+async function fetchDomainsFromApi() {
+    const data = await getStorage(['apiKey']);
+    const headers = {
+        "Content-Type": "application/json"
+    };
+
+    if (data.apiKey) {
+        headers['x-api-key'] = data.apiKey;
+    }
+
+    return fetch(`${API_BASE}/getDomains`, { headers });
+}
+
 // Set stored data helper
 async function setStorage(data) {
     return new Promise((resolve) => {
@@ -31,7 +44,7 @@ async function setStorage(data) {
 
 async function updateDomainsCache() {
     try {
-        const response = await fetch(`${API_BASE}/getDomains`);
+        const response = await fetchDomainsFromApi();
         if (!response.ok) throw new Error("Failed to fetch domains");
         const domains = await response.json();
         if (Array.isArray(domains) && domains.length > 0) {
@@ -278,7 +291,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             if (!domains || domains.length === 0) {
                 try {
-                    const response = await fetch(`${API_BASE}/getDomains`);
+                    const response = await fetchDomainsFromApi();
                     domains = await response.json();
                     setStorage({ cachedDomains: domains });
                 } catch (e) {

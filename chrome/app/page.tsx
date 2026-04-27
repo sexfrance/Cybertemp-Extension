@@ -294,7 +294,12 @@ export default function Popup() {
       let finalDomain = domainToUse;
 
       if (random) {
-          if (domains.length > 0) finalDomain = domains[Math.floor(Math.random() * domains.length)];
+          // Respect the domain the user picked in the dropdown — Random
+          // should only randomise the local part. Only fall back to a
+          // random domain when nothing is selected yet.
+          if (!finalDomain && domains.length > 0) {
+              finalDomain = domains[Math.floor(Math.random() * domains.length)];
+          }
       } else if (userToUse.includes("@")) {
           // Fallback if they managed to get an @ in somehow, but we handle this in handleUsernameChange now
           const parts = userToUse.split("@");
